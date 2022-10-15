@@ -55,6 +55,7 @@ import {
   CreatableSelect,
   DropdownIndicatorProps,
   GroupBase,
+  MultiValueRemoveProps,
   Select,
   SingleValue,
 } from 'chakra-react-select';
@@ -276,6 +277,27 @@ export const ServicesTable = ({ columns }: DataTableProps) => {
     menu: () => ({
       display: 'none',
     }),
+    multiValue: (provided) => ({
+      ...provided,
+      backgroundColor: 'gray.500',
+      color: 'black',
+      borderRadius: '4px',
+      fontSize: '12px',
+      fontWeight: '400',
+      lineHeight: '12px',
+      px: '7px',
+      py: '3px',
+      display: 'inline',
+      minHeight: 'auto',
+    }),
+    multiValueRemove: (provided) => ({
+      ...provided,
+      display: 'inline',
+      height: '12px',
+      width: '12px',
+      opacity: 1,
+      fontSize: '14px',
+    }),
   };
 
   const customComponents = {
@@ -286,6 +308,17 @@ export const ServicesTable = ({ columns }: DataTableProps) => {
       <chakraComponents.DropdownIndicator {...props}>
         <ChevronDownIcon color="text.100" />
       </chakraComponents.DropdownIndicator>
+    ),
+  };
+
+  const customComponentsMulti = {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    MultiValueRemove: (
+      props: MultiValueRemoveProps<Option, true, GroupBase<Option>>,
+    ) => (
+      <chakraComponents.MultiValueRemove {...props}>
+        <CrossIcon color="black" />
+      </chakraComponents.MultiValueRemove>
     ),
   };
 
@@ -1128,6 +1161,7 @@ export const ServicesTable = ({ columns }: DataTableProps) => {
                 }
                 focusBorderColor="brand.500"
                 chakraStyles={customStylesMulti}
+                components={customComponentsMulti}
                 isMulti={true}
               />
               {/* <InputGroup
