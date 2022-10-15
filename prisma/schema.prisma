@@ -1,0 +1,97 @@
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model Account {
+    id                String  @id @default(cuid())
+    userId            String
+    type              String
+    provider          String
+    providerAccountId String
+    refresh_token     String?
+    access_token      String?
+    expires_at        Int?
+    token_type        String?
+    scope             String?
+    id_token          String?
+    session_state     String?
+    user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([provider, providerAccountId])
+}
+
+model Session {
+    id           String   @id @default(cuid())
+    sessionToken String   @unique
+    userId       String
+    expires      DateTime
+    user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+    id               String    @id @default(cuid())
+    name             String
+    email            String    @unique
+    emailVerified    DateTime?
+    image            String?
+    accounts         Account[]
+    sessions         Session[]
+    createdServices  Service[] @relation("createdBy")
+    assignedServices Service[] @relation("assignedTo")
+    comments         Comment[]
+}
+
+model Service {
+    id           String     @id @default(cuid())
+    createdAt    DateTime   @default(now())
+    updatedAt    DateTime   @updatedAt
+    name         String     @unique
+    url          String     @unique
+    email        String     @unique
+    phone        String?    @unique
+    priority     Priority
+    status       Status
+    createdBy    User       @relation("createdBy", fields: [createdById], references: [id])
+    createdById  String
+    assignedTo   User?      @relation("assignedTo", fields: [assignedToId], references: [id])
+    assignedToId String?
+    comments     Comment[]
+    categories   Category[]
+}
+
+model Comment {
+    id        String   @id @default(cuid())
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+    text      String
+    service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+    serviceId String
+    author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+    authorId  String
+}
+
+model Category {
+    id        String    @id @default(cuid())
+    createdAt DateTime  @default(now())
+    updatedAt DateTime  @updatedAt
+    name      String
+    services  Service[]
+}
+
+enum Priority {
+    LOW
+    MEDIUM
+    HIGH
+}
+
+enum Status {
+    NEW
+    IN_PROGRESS
+    ACCEPTED
+    DECLINED
+}
