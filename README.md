@@ -26,8 +26,6 @@ NEXTAUTH_URL=http://localhost:3000
 
 DISCORD_CLIENT_ID=
 DISCORD_CLIENT_SECRET=
-
-NEXT_PUBLIC_ADMIN_USER_ID=
 ```
 
 You can see example file at `.env.example`.
