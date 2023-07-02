@@ -1,8 +1,9 @@
 import type { NextPage } from 'next';
 import Head from 'next/head';
 import { createColumnHelper, Row, Table } from '@tanstack/react-table';
-import { Checkbox, CheckboxProps, Container } from '@chakra-ui/react';
+import { Button, Checkbox, CheckboxProps, Container } from '@chakra-ui/react';
 import { useEffect, useMemo, useRef } from 'react';
+import { signIn, useSession } from 'next-auth/react';
 
 import { InferQueryOutput, trpc } from 'utils/trpc';
 import { ServicesTable } from 'components/ServicesTable';
@@ -155,6 +156,16 @@ const Home: NextPage = () => {
     ],
     [columnHelper],
   );
+
+  const { data: session } = useSession();
+
+  if (!session) {
+    return (
+      <Button colorScheme="green" size="lg" onClick={() => signIn()}>
+        Prisijungti
+      </Button>
+    );
+  }
 
   return (
     <>

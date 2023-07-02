@@ -31,13 +31,13 @@ export const Toast: React.FC<ToastProps> = ({ type, title, description }) => {
   const getIcon = (): JSX.Element => {
     switch (type) {
       case 'success':
-        return <SuccessIcon boxSize={7} color="white" />;
+        return <SuccessIcon boxSize={12} color="success.200" mr="20px" />;
       case 'error':
-        return <ErrorIcon boxSize={7} color="white" />;
+        return <ErrorIcon boxSize={12} color="success.200" mr="20px" />;
       case 'info':
-        return <InfoIcon boxSize={7} color="white" />;
+        return <InfoIcon boxSize={12} color="success.200" mr="20px" />;
       default:
-        return <WarningIcon boxSize={7} color="white" />;
+        return <WarningIcon boxSize={12} color="success.200" mr="20px" />;
     }
   };
 
@@ -53,9 +53,9 @@ export const Toast: React.FC<ToastProps> = ({ type, title, description }) => {
       borderLeft="5px solid"
       borderColor={color}
     >
-      <Box backgroundColor={color} p="7px" borderRadius="100%" mr="20px">
-        {getIcon()}
-      </Box>
+      {/* <Box backgroundColor={color} p="7px" borderRadius="100%" mr="20px"> */}
+      {getIcon()}
+      {/* </Box> */}
       <Box>
         <Text color="black" fontWeight={500} mb="5px">
           {title}

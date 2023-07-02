@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-    provider = "postgresql"
+    provider = "sqlite"
     url      = env("DATABASE_URL")
 }
 
@@ -54,8 +54,8 @@ model Service {
     url          String     @unique
     email        String     @unique
     phone        String?    @unique
-    priority     Priority
-    status       Status
+    priority     String // Priority
+    status       String // Status
     createdBy    User       @relation("createdBy", fields: [createdById], references: [id])
     createdById  String
     assignedTo   User?      @relation("assignedTo", fields: [assignedToId], references: [id])
@@ -79,19 +79,20 @@ model Category {
     id        String    @id @default(cuid())
     createdAt DateTime  @default(now())
     updatedAt DateTime  @updatedAt
-    name      String
+    label     String
+    value     String
     services  Service[]
 }
 
-enum Priority {
-    LOW
-    MEDIUM
-    HIGH
-}
+// enum Priority {
+//     LOW
+//     MEDIUM
+//     HIGH
+// }
 
-enum Status {
-    NEW
-    IN_PROGRESS
-    ACCEPTED
-    DECLINED
-}
+// enum Status {
+//     NEW
+//     IN_PROGRESS
+//     ACCEPTED
+//     DECLINED
+// }

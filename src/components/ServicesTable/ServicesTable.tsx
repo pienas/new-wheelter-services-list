@@ -55,6 +55,7 @@ import {
   CreatableSelect,
   DropdownIndicatorProps,
   GroupBase,
+  MultiValue,
   MultiValueRemoveProps,
   Select,
   SingleValue,
@@ -76,7 +77,6 @@ import {
   ChevronRightIcon,
   ChevronDownIcon,
   PriorityIcon,
-  DescriptionIcon,
   NameIcon,
   UrlIcon,
   EmailIcon,
@@ -86,7 +86,7 @@ import {
 } from 'components/icons';
 import { DebouncedInput } from 'components/DebouncedInput';
 import { Tag } from 'components/Tag';
-import { PRIORITY, ServiceForm, STATUS } from 'types';
+import { PRIORITY, PRIORITYLT, ServiceForm, STATUS, STATUSLT } from 'types';
 import { Toast } from 'components/Toast';
 
 type ServiceFromServer = InferQueryOutput<'services.getOne'>['service'];
@@ -114,7 +114,9 @@ export const ServicesTable = ({ columns }: DataTableProps) => {
     },
   );
 
-  const { data: categories } = trpc.useQuery(['categories.getAll']);
+  const { data: categories, refetch: refetchCategories } = trpc.useQuery([
+    'categories.getAll',
+  ]);
 
   const { data: users } = trpc.useQuery(['users.getAll']);
 
@@ -131,6 +133,12 @@ export const ServicesTable = ({ columns }: DataTableProps) => {
   const [selectedAssignee, setSelectedAssignee] =
     useState<SingleValue<Option>>(null);
 
+  const [newCategories, setNewCategories] = useState<MultiValue<Option>>([]);
+
+  const [newCategoryName, setNewCategoryName] = useState<string>('');
+
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+
   const initialFormValues = {
     name: '',
     url: '',
@@ -138,46 +146,45 @@ export const ServicesTable = ({ columns }: DataTableProps) => {
     phone: '',
     priority: PRIORITY.LOW,
     status: STATUS.NEW,
-    assigneeId: '',
   };
 
   const priorityOptions: Option[] = [
     {
       value: PRIORITY.LOW,
-      label: <Tag type={PRIORITY.LOW} />,
+      label: <Tag type={PRIORITYLT.LOW} />,
     },
     {
       value: PRIORITY.MEDIUM,
-      label: <Tag type={PRIORITY.MEDIUM} />,
+      label: <Tag type={PRIORITYLT.MEDIUM} />,
     },
     {
       value: PRIORITY.HIGH,
-      label: <Tag type={PRIORITY.HIGH} />,
+      label: <Tag type={PRIORITYLT.HIGH} />,
     },
   ];
 
   const statusOptions: Option[] = [
     {
       value: STATUS.NEW,
-      label: <Tag type={STATUS.NEW} />,
+      label: <Tag type={STATUSLT.NEW} />,
     },
     {
       value: STATUS.IN_PROGRESS,
-      label: <Tag type={STATUS.IN_PROGRESS} />,
+      label: <Tag type={STATUSLT.IN_PROGRESS} />,
     },
     {
       value: STATUS.ACCEPTED,
-      label: <Tag type={STATUS.ACCEPTED} />,
+      label: <Tag type={STATUSLT.ACCEPTED} />,
     },
     {
       value: STATUS.DECLINED,
-      label: <Tag type={STATUS.DECLINED} />,
+      label: <Tag type={STATUSLT.DECLINED} />,
     },
   ];
 
   const assigneeOptions: Option[] =
     users?.users.map((user) => ({
-      value: user.name,
+      value: user.id,
       label: <Tag label={user.name} />,
     })) || [];
 
@@ -265,9 +272,9 @@ export const ServicesTable = ({ columns }: DataTableProps) => {
       fontSize: '12px',
       opacity: 1,
     }),
-    dropdownIndicator: () => ({
-      display: 'none',
-    }),
+    // dropdownIndicator: () => ({
+    //   display: 'none',
+    // }),
     clearIndicator: () => ({
       display: 'none',
     }),
@@ -320,6 +327,34 @@ export const ServicesTable = ({ columns }: DataTableProps) => {
         <CrossIcon color="black" />
       </chakraComponents.MultiValueRemove>
     ),
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    DropdownIndicator: () =>
+      newCategoryName.length > 0 ? (
+        <Flex
+          width="100%"
+          backgroundColor="success.100"
+          alignItems="center"
+          p="4px"
+          borderRadius="4px"
+          mr="9px"
+          cursor="pointer"
+          onClick={() => {
+            setNewCategories((prev) => [
+              ...prev,
+              {
+                label: newCategoryName as string,
+                value: newCategoryName as string,
+                __isNew__: true,
+              },
+            ]);
+            setNewCategoryName('');
+          }}
+        >
+          <CheckIcon color="success.200" />
+        </Flex>
+      ) : (
+        <></>
+      ),
   };
 
   const globalFilterFn: FilterFn<any> = (
@@ -386,6 +421,10 @@ export const ServicesTable = ({ columns }: DataTableProps) => {
 
   const createServiceMutation = trpc.useMutation(['services.create']);
 
+  const createCategoryMutation = trpc.useMutation(['categories.create']);
+
+  const assignCategoryMutation = trpc.useMutation(['categories.assign']);
+
   const plausible = usePlausible();
 
   const toast = useToast();
@@ -395,22 +434,24 @@ export const ServicesTable = ({ columns }: DataTableProps) => {
   const formik = useFormik({
     initialValues: initialFormValues,
     onSubmit: (values, { resetForm }) => {
-      handleCreateService(values);
-      resetForm();
+      handleCreateService(values, resetForm);
     },
   });
 
-  const handleCreateService = async ({
-    name,
-    url,
-    email,
-    phone,
-    priority,
-    status,
-    assigneeId,
-  }: ServiceFormType) => {
-    createServiceMutation.mutate(
-      {
+  const handleCreateService = async (
+    {
+      name,
+      url,
+      email,
+      phone,
+      priority,
+      status,
+      assignedToId,
+    }: ServiceFormType,
+    resetForm: () => void,
+  ) => {
+    createServiceMutation
+      .mutateAsync({
         createdById: session?.user?.id || '',
         name,
         url,
@@ -418,29 +459,42 @@ export const ServicesTable = ({ columns }: DataTableProps) => {
         phone,
         priority,
         status,
-        assigneeId,
-      },
-      {
-        onSuccess: () => {
-          toast({
-            status: 'success',
-            duration: 3000,
-            isClosable: false,
-            render: () => (
-              <Toast
-                type="success"
-                title="Paslaugų teikėjas sukurtas"
-                description="Paslaugų teikėjas buvo sėkmingai sukurtas ir pridėtas į
-              sąrašą."
-              />
-            ),
+        assignedToId,
+      })
+      .then(async (data) => {
+        plausible('create');
+        newCategories.forEach((category) => {
+          createCategoryMutation.mutateAsync({
+            label: category.label as string,
+            value: category.value,
+            serviceId: data.service.id,
           });
-          refetchServices();
-          onClose();
-        },
-      },
-    );
-    plausible('create');
+        });
+        selectedCategories.forEach((category) => {
+          assignCategoryMutation.mutateAsync({
+            id: category,
+            serviceId: data.service.id,
+          });
+        });
+        await refetchCategories();
+        toast({
+          status: 'success',
+          duration: 3000,
+          isClosable: false,
+          render: () => (
+            <Toast
+              type="success"
+              title="Paslaugų teikėjas sukurtas"
+              description="Paslaugų teikėjas buvo sėkmingai sukurtas ir pridėtas į
+          sąrašą."
+            />
+          ),
+        });
+        await refetchServices();
+        onClose();
+        resetForm();
+        formik.setFieldValue('assignedToId', undefined);
+      });
   };
 
   const assignServiceMutation = trpc.useMutation(['services.assign']);
@@ -467,7 +521,7 @@ export const ServicesTable = ({ columns }: DataTableProps) => {
         assignedToId: session?.user?.id || '',
       },
       {
-        onSuccess: () => {
+        onSuccess: async () => {
           toast({
             status: 'success',
             duration: 3000,
@@ -480,7 +534,7 @@ export const ServicesTable = ({ columns }: DataTableProps) => {
               />
             ),
           });
-          refetchServices();
+          await refetchServices();
         },
       },
     );
@@ -613,7 +667,7 @@ export const ServicesTable = ({ columns }: DataTableProps) => {
           assignedToId: session?.user?.id || '',
         },
         {
-          onSuccess: () => {
+          onSuccess: async () => {
             toast({
               status: 'success',
               duration: 3000,
@@ -627,7 +681,7 @@ export const ServicesTable = ({ columns }: DataTableProps) => {
               ),
             });
             setRowSelection({});
-            refetchServices();
+            await refetchServices();
           },
         },
       );
@@ -636,17 +690,15 @@ export const ServicesTable = ({ columns }: DataTableProps) => {
   };
 
   const selfAssignServiceInCreation = () => {
-    const userName = users.users.find(
-      (user) => user.id === session?.user?.id,
-    )?.name;
+    const user = users.users.find((u) => u.id === session?.user?.id);
 
-    if (userName) {
+    if (user) {
       setSelectedAssignee({
-        value: userName,
-        label: <Tag label={userName} />,
+        value: user.id,
+        label: <Tag label={user.name} />,
       });
 
-      formik.setFieldValue('assignee', userName);
+      formik.setFieldValue('assignedToId', user.id);
     }
   };
 
@@ -1163,51 +1215,43 @@ export const ServicesTable = ({ columns }: DataTableProps) => {
                 chakraStyles={customStylesMulti}
                 components={customComponentsMulti}
                 isMulti={true}
-              />
-              {/* <InputGroup
-                mb="10px"
-                sx={{
-                  input: {
-                    paddingInlineStart: '28px',
-                  },
+                onChange={(value) => {
+                  setNewCategories(value);
+                  setNewCategoryName('');
                 }}
-              >
-                <InputLeftElement
-                  pointerEvents="none"
-                  children={<NewCategoryIcon color="text.100" boxSize={4} />}
-                  ml="-3px"
-                />
-                <Input
-                  id="category"
-                  type="text"
-                  borderColor="gray.500"
-                  placeholder="Kategorijos pavadinimas"
-                  _placeholder={{
-                    color: 'text.100',
-                    fontSize: '12px',
-                    opacity: 1,
-                    transform: 'translateY(-2px)',
-                  }}
-                  _focusVisible={{
-                    borderColor: 'brand.500',
-                  }}
-                />
-                {formik.values.phone.length && (
-                  <InputRightElement
-                    children={<CheckIcon color="success.200" />}
-                    cursor="pointer"
-                  />
-                )}
-              </InputGroup> */}
-              <Grid templateColumns="1fr 1fr">
+                value={newCategories}
+                onInputChange={(value, { action }) => {
+                  if (action === 'menu-close') {
+                    setNewCategoryName(newCategoryName);
+                  } else if (action === 'input-change') {
+                    setNewCategoryName(value);
+                  }
+                }}
+              />
+              <Grid templateColumns="1fr 1fr" mt="10px">
                 {categories.categories.map((category) => (
                   <Checkbox
                     colorScheme="brand"
                     borderColor="checkbox"
                     mb="6px"
                     key={category.id}
+                    onChange={() => {
+                      const idx = selectedCategories.indexOf(category.id);
+
+                      if (idx > -1) {
+                        setSelectedCategories([
+                          ...selectedCategories.slice(0, idx),
+                          ...selectedCategories.slice(idx + 1),
+                        ]);
+                      } else {
+                        setSelectedCategories([
+                          ...selectedCategories,
+                          category.id,
+                        ]);
+                      }
+                    }}
                   >
-                    <Text fontSize="12px">{category.name}</Text>
+                    <Text fontSize="12px">{category.label}</Text>
                   </Checkbox>
                 ))}
               </Grid>
@@ -1252,11 +1296,12 @@ export const ServicesTable = ({ columns }: DataTableProps) => {
                   components={customComponents}
                 />
                 <Select<Option, false, GroupBase<Option>>
-                  id="assignee"
-                  name="assignee"
+                  id="assignedToId"
+                  name="assignedToId"
                   options={assigneeOptions}
                   onChange={(option: SingleValue<Option>) => {
-                    formik.setFieldValue('assignee', option?.value);
+                    console.log(option?.value);
+                    formik.setFieldValue('assignedToId', option?.value);
                   }}
                   value={selectedAssignee}
                   noOptionsMessage={() => 'Rezultatų nėra'}
